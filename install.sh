@@ -40,11 +40,26 @@ log() {
 }
 
 load_settings() {
-    [ -f "$SETTINGS_CONF" ] || return
+    [ -f "$SETTINGS_CONF" ] || return 0
     set -a
     # shellcheck disable=SC1090
     . "$SETTINGS_CONF"
     set +a
+}
+
+preflight() {
+    if [ ! -f "$PACKAGES_CONF" ]; then
+        echo "Missing $PACKAGES_CONF. Copy the complete bootstrap directory, not only install.sh." >&2
+        exit 1
+    fi
+    if [ ! -d "$DOTFILES_DIR" ]; then
+        echo "Missing $DOTFILES_DIR. Copy the complete bootstrap directory, not only install.sh." >&2
+        exit 1
+    fi
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "Warning: running the whole installer as root will install dotfiles under $HOME." >&2
+        echo "Run it as your normal user; the script invokes sudo only when required." >&2
+    fi
 }
 
 have() {
@@ -69,8 +84,8 @@ backup_root_file() {
 }
 
 configure_apt_mirror() {
-    [ -n "${APT_MIRROR:-}" ] || return
-    [ -f /etc/apt/sources.list ] || return
+    [ -n "${APT_MIRROR:-}" ] || return 0
+    [ -f /etc/apt/sources.list ] || return 0
 
     require_sudo
     codename=$(. /etc/os-release && printf '%s' "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}")
@@ -100,7 +115,9 @@ configure_user_registries() {
         {
             echo "[global]"
             echo "index-url = $PIP_INDEX_URL"
-            [ -n "${PIP_TRUSTED_HOST:-}" ] && echo "trusted-host = $PIP_TRUSTED_HOST"
+            if [ -n "${PIP_TRUSTED_HOST:-}" ]; then
+                echo "trusted-host = $PIP_TRUSTED_HOST"
+            fi
         } > "$HOME/.config/pip/pip.conf"
     fi
 
@@ -131,8 +148,12 @@ configure_user_registries() {
 }
 
 configure_git_identity() {
-    [ -n "${GIT_USER_NAME:-}" ] && git config --global user.name "$GIT_USER_NAME"
-    [ -n "${GIT_USER_EMAIL:-}" ] && git config --global user.email "$GIT_USER_EMAIL"
+    if [ -n "${GIT_USER_NAME:-}" ]; then
+        git config --global user.name "$GIT_USER_NAME"
+    fi
+    if [ -n "${GIT_USER_EMAIL:-}" ]; then
+        git config --global user.email "$GIT_USER_EMAIL"
+    fi
 }
 
 read_apt_packages() {
@@ -448,7 +469,7 @@ verify_versions() {
 
 install_npm_globals() {
     packages=$(read_section_items "npm:global" | tr '\n' ' ')
-    [ -n "$packages" ] || return
+    [ -n "$packages" ] || return 0
 
     if ! have npm; then
         echo "npm global packages selected, but npm is not installed. Uncomment node or install npm first."
@@ -462,7 +483,7 @@ install_npm_globals() {
 
 install_cargo_globals() {
     packages=$(read_section_items "cargo:global" | tr '\n' ' ')
-    [ -n "$packages" ] || return
+    [ -n "$packages" ] || return 0
 
     if ! have cargo; then
         echo "cargo packages selected, but cargo is not installed. Uncomment rustup or install Rust first."
@@ -492,7 +513,7 @@ print_skipped() {
 
 set_default_shell() {
     if [ "$NO_CHSH" -eq 1 ]; then
-        return
+        return 0
     fi
     if have zsh && [ "${SHELL:-}" != "$(command -v zsh)" ]; then
         log "Changing default shell to zsh"
@@ -501,6 +522,8 @@ set_default_shell() {
 }
 
 main() {
+    log "Starting bootstrap from $ROOT_DIR"
+    preflight
     load_settings
     configure_apt_mirror
     install_apt_packages

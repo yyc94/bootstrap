@@ -95,6 +95,10 @@ export AMAP_CITY_ADCODE='440300'
 sh install.sh
 ```
 
+请使用普通用户执行，不要运行 `sudo sh install.sh`。脚本只在安装 apt 包或修改 apt
+源时自行调用 `sudo`；整体使用 sudo 会把 dotfiles 和用户级工具安装到 root 的 home
+目录。若脚本异常退出，可用 `sh -x install.sh` 显示逐条执行轨迹。
+
 过程中会要求输入 `sudo` 密码，也可能由 `chsh` 再次要求密码。安装器会依次完成：apt 软件、dotfiles、镜像设置、Git 身份、zinit、固定版本工具、可选工具、npm/cargo 全局包、Neovim 插件同步、默认 shell 和版本校验。
 
 也可以临时用参数启用部分外部工具，无需修改 `packages.conf`：
