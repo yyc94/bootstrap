@@ -52,11 +52,28 @@ cheat 4.4.2
 编辑 [settings.conf](settings.conf)：
 
 - pip 清华源默认开启。
-- apt、npm、Rust 和 Conda 镜像默认注释，需要时取消注释。
-- `GIT_USER_NAME` 和 `GIT_USER_EMAIL` 默认不设置，建议在新电脑上填写自己的身份。
+- apt 清华镜像默认开启；npm、Rust 和 Conda 镜像默认注释，需要时取消注释。
+- `GIT_USER_NAME` 和 `GIT_USER_EMAIL` 配置提交身份；复制给其他用户前应改成其身份。
+- `GIT_GITHUB_PROTOCOL=https` 是注册 SSH Key 前的初始回退值；验证成功后脚本会自动
+  改成 `ssh`。
+- `GENERATE_GITHUB_SSH_KEY=1` 会在没有现有 SSH 公钥时生成 Ed25519 密钥。
 - `NVIM_LAZY_SYNC=1` 表示安装后自动同步 Neovim 插件；网络不稳定时可暂时设为 `0`。
 
-谨慎启用 `APT_MIRROR`。脚本只在 `/etc/apt/sources.list` 存在时改写其中的 Ubuntu 软件源，并先创建带时间戳的备份；Pop!_OS 自己的源文件不会被写入。较新的系统若使用 deb822 `.sources` 文件，此选项不会生效，应保留系统默认源或手动配置。
+脚本会在安装软件前先配置 `APT_MIRROR` 并执行 `apt-get update`。它支持传统的
+`/etc/apt/sources.list`、新版 Ubuntu 的 deb822 `ubuntu.sources`，以及 Pop!_OS 的
+`system.sources`，修改前会创建带时间戳的备份。Pop!_OS 其他独立源文件不会被
+写入；不需要换源时可注释掉 `APT_MIRROR`。
+
+Git 的提交身份不等于远端登录凭据。默认 HTTPS 配置足以拉取脚本使用的公开仓库；
+脚本会复用已有的 `id_ed25519.pub`、`id_ecdsa.pub` 或 `id_rsa.pub`；如果都不存在，
+则生成 `~/.ssh/id_ed25519` 并在终端输出公钥。脚本会先自动测试 SSH，尚未注册时
+提示打开 <https://github.com/settings/ssh/new> 添加公钥，并等待回车后再次验证。
+验证成功后，它会自动切换全局 Git 到 SSH，并将 `GIT_GITHUB_PROTOCOL=ssh` 写回
+`settings.conf`，不需要手动修改。输入 `s` 可以跳过并继续使用 HTTPS。
+
+通过管道或 CI 非交互执行时，脚本不会等待输入，而会继续使用 HTTPS，并提示稍后
+执行 `ssh -T git@github.com`。脚本不会上传、复制或打印私钥，也不会保存 GitHub
+Token。
 
 ## 4. 检查私密配置
 
@@ -99,7 +116,20 @@ sh install.sh
 源时自行调用 `sudo`；整体使用 sudo 会把 dotfiles 和用户级工具安装到 root 的 home
 目录。若脚本异常退出，可用 `sh -x install.sh` 显示逐条执行轨迹。
 
-过程中会要求输入 `sudo` 密码，也可能由 `chsh` 再次要求密码。安装器会依次完成：apt 软件、dotfiles、镜像设置、Git 身份、zinit、固定版本工具、可选工具、npm/cargo 全局包、Neovim 插件同步、默认 shell 和版本校验。
+过程中会先预认证 `sudo`，并按以下依赖顺序执行：
+
+1. 检查完整目录、运行用户和必要权限。
+2. 询问是否启用 apt 镜像，修改源并执行 `apt-get update`。
+3. 安装 apt 基础包，并确认 `git`、`curl`、`tar`、`ssh-keygen` 等命令可用。
+4. 备份并部署 dotfiles，然后配置 pip/Rust 基础环境。
+5. 配置 Git 提交身份，生成/验证 GitHub SSH Key；验证成功后才启用 SSH 通路。
+6. 安装固定版本工具，再安装 zinit。
+7. 询问并安装可选工具，随后配置 npm/Conda 源和 npm/cargo 全局包。
+8. 询问 Neovim 插件同步和默认 shell，最后统一做版本校验和失败汇总。
+
+网络失败、zinit 失败或可选工具失败会给出重试/跳过选择；核心 apt 更新、基础命令缺失
+仍会中止，因为继续执行会放大后续错误。交互终端会询问 apt 镜像、可选工具、SSH、
+Neovim 同步和默认 shell；管道/CI 运行时自动采用安全的默认选项且不会等待输入。
 
 也可以临时用参数启用部分外部工具，无需修改 `packages.conf`：
 

@@ -4,8 +4,6 @@
 	tool = kdiff3
 [diff]
 	tool = kdiff3
-[url "git@github.com:"]
-	insteadOf = https://github.com/
 [color]
 	ui = auto
 [filter "lfs"]
