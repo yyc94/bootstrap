@@ -17,6 +17,8 @@ WITH_CHEAT=0
 WITH_XMAKE=0
 NO_CHSH=0
 INTERACTIVE=0
+RESTORE_GIT=0
+RESTORE_DIR=
 APT_SKIPPED_FILE="/tmp/bootstrap-apt-skipped.$$"
 VERSION_FAILURES_FILE="/tmp/bootstrap-version-failures.$$"
 STEP_FAILURES_FILE="/tmp/bootstrap-step-failures.$$"
@@ -24,9 +26,25 @@ STEP_FAILURES_FILE="/tmp/bootstrap-step-failures.$$"
 cleanup() {
     rm -f "$APT_SKIPPED_FILE" "$VERSION_FAILURES_FILE" "$STEP_FAILURES_FILE"
     rm -f "$SETTINGS_CONF.tmp.$$" /tmp/sources.list.$$ /tmp/ubuntu.sources.$$ /tmp/system.sources.$$
+    rm -f "$HOME/.gitconfig.restore.$$"
 }
 
 trap cleanup 0
+
+usage() {
+    cat <<EOF
+Usage: sh install.sh [options]
+
+Install options:
+  --with-rust --with-go --with-miniconda --with-node
+  --with-cheat --with-xmake --no-chsh
+
+Recovery options (do not run the installer):
+  --restore, --restore-git       Restore the pre-bootstrap ~/.gitconfig
+  --restore-git=BACKUP_DIR      Restore .gitconfig from a specific backup
+  --help                        Show this help
+EOF
+}
 
 for arg in "$@"; do
     case "$arg" in
@@ -37,6 +55,15 @@ for arg in "$@"; do
         --with-cheat) WITH_CHEAT=1 ;;
         --with-xmake) WITH_XMAKE=1 ;;
         --no-chsh) NO_CHSH=1 ;;
+        --restore|--restore-git) RESTORE_GIT=1 ;;
+        --restore=*|--restore-git=*)
+            RESTORE_GIT=1
+            RESTORE_DIR=${arg#*=}
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
         *)
             echo "Unknown option: $arg" >&2
             exit 2
@@ -114,6 +141,61 @@ preflight() {
 
 have() {
     command -v "$1" >/dev/null 2>&1
+}
+
+find_original_git_backup() {
+    original_backup_dir=$(find "$HOME" -maxdepth 1 -type d \
+        -name '.bootstrap-backup-*' -print 2>/dev/null |
+        LC_ALL=C sort |
+        sed -n '1p')
+    [ -n "$original_backup_dir" ] || return 0
+    printf '%s/.gitconfig\n' "$original_backup_dir"
+}
+
+restore_git_config() {
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "Refusing to restore root's Git config. Run this as the affected normal user." >&2
+        exit 1
+    fi
+
+    if [ -n "$RESTORE_DIR" ]; then
+        if [ -f "$RESTORE_DIR" ]; then
+            backup_file=$RESTORE_DIR
+        else
+            backup_file=${RESTORE_DIR%/}/.gitconfig
+        fi
+    else
+        backup_file=$(find_original_git_backup)
+    fi
+
+    if [ -z "${backup_file:-}" ] || [ ! -f "$backup_file" ]; then
+        echo "No pre-bootstrap .gitconfig backup was found." >&2
+        echo "Expected: ~/.bootstrap-backup-YYYYmmdd-HHMMSS/.gitconfig" >&2
+        echo "Use --restore-git=BACKUP_DIR to select a backup explicitly." >&2
+        exit 1
+    fi
+
+    if have git && ! git config --file "$backup_file" --list >/dev/null; then
+        echo "Backup is not a valid Git config: $backup_file" >&2
+        exit 1
+    fi
+
+    timestamp=$(date +%Y%m%d-%H%M%S)
+    if [ -e "$HOME/.gitconfig" ]; then
+        current_backup="$HOME/.gitconfig.before-bootstrap-restore-$timestamp.$$"
+        cp -p "$HOME/.gitconfig" "$current_backup"
+        echo "Current Git config saved to: $current_backup"
+    fi
+
+    restore_tmp="$HOME/.gitconfig.restore.$$"
+    cp -p "$backup_file" "$restore_tmp"
+    mv "$restore_tmp" "$HOME/.gitconfig"
+
+    echo "Git config restored from: $backup_file"
+    if have git; then
+        echo "Git identity: $(git config --global user.name 2>/dev/null || printf 'not set') <$(git config --global user.email 2>/dev/null || printf 'not set')>"
+    fi
+    echo "Retry the original clone command. No install or network step was run."
 }
 
 require_sudo() {
@@ -831,6 +913,11 @@ set_default_shell() {
 }
 
 main() {
+    if [ "$RESTORE_GIT" -eq 1 ]; then
+        restore_git_config
+        return 0
+    fi
+
     log "Starting bootstrap from $ROOT_DIR"
     preflight
     load_settings

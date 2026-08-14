@@ -178,7 +178,23 @@ chsh -s "$(command -v zsh)"
 
 配置目录采用合并方式。例如安装 `~/.config/nvim` 不会删除 `~/.config` 中其他应用的配置；已有的 Neomutt 私密文件也会保留。脚本可以重跑，但每次重跑都会重新部署本项目管理的配置，并为被替换的同名文件生成新备份。
 
-需要恢复时，从最近的备份目录把对应文件移回原位置即可。脚本不会复制或删除 SSH/GPG 密钥、浏览器资料、项目目录和缓存。完整覆盖范围见 [config-coverage.md](config-coverage.md)。
+如果安装后 Git 的代理、URL 映射或身份配置异常，可以一键恢复第一次运行脚本前的
+`~/.gitconfig`：
+
+```sh
+sh install.sh --restore
+```
+
+`--restore-git` 与 `--restore` 等价。恢复模式不会请求 sudo、安装软件、修改 apt 源或
+访问网络；它会自动选择最早的 `.bootstrap-backup-*` Git 配置，并先把当前配置保存为
+`~/.gitconfig.before-bootstrap-restore-*`。如需指定某次备份：
+
+```sh
+sh install.sh --restore-git="$HOME/.bootstrap-backup-20260814-120000"
+```
+
+其他文件仍可从备份目录手动恢复。脚本不会复制或删除 SSH/GPG 私钥、浏览器资料、
+项目目录和缓存。完整覆盖范围见 [config-coverage.md](config-coverage.md)。
 
 ## 常见问题
 
