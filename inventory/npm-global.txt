@@ -1,0 +1,9 @@
+/usr/local/lib
+├── @commitlint/cli@19.8.0
+├── @commitlint/config-conventional@19.8.0
+├── commitizen@4.2.4
+├── corepack@0.31.0
+├── cz-customizable@6.7.0
+├── n@10.1.0
+└── npm@10.9.2
+

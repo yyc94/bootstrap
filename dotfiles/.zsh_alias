@@ -1,0 +1,8 @@
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+alias start='zellij --layout "$HOME/.config/zellij/panel.kdl"'
+alias pdf='zathura'
+alias mans='zeal'
+alias mail='neomutt'

@@ -1,0 +1,17 @@
+layout {
+    pane split_direction="vertical" {
+        pane name="ADB" {
+        } 
+        pane split_direction="horizontal" {
+            pane name="MAN" {
+            }
+            pane name="COMPILE"{
+            }
+            pane name="TOOLS" size="10%" {
+            }
+        }
+    }
+    pane size=1 borderless=true {
+        plugin location="zellij:compact-bar"
+    }
+}

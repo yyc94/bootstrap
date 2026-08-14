@@ -1,0 +1,13 @@
+cargo-xwin v0.19.2:
+    cargo-xwin
+gfold v2025.4.0:
+    gfold
+pastel v0.11.0:
+    pastel
+pokeget v1.6.7:
+    pokeget
+tdf-viewer v0.4.3 (https://github.com/itsjunetime/tdf.git#3628d21c):
+    for_profiling
+    tdf
+timer-cli v0.9.0:
+    timer

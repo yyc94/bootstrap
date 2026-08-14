@@ -1,0 +1,11 @@
+# style name or JSON path (default "auto")
+style: "/home/yangyuchen/.config/glow/shenzhen-night.json"
+# style: "dracula"
+# mouse support (TUI-mode only)
+mouse: false
+# use pager to display markdown
+pager: false
+# word-wrap at width
+width: 120
+# show all files, including hidden and ignored.
+all: false

@@ -1,0 +1,15 @@
+---
+editor: nvim
+colorize: false
+style: monokai
+formatter: terminal256
+pager:
+cheatpaths:
+  - name: community
+    path: ~/.config/cheat/cheatsheets/community
+    tags: [ community ]
+    readonly: true
+  - name: personal
+    path: ~/.config/cheat/cheatsheets/personal
+    tags: [ personal ]
+    readonly: false

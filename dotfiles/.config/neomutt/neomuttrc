@@ -1,0 +1,51 @@
+set editor = "nvim"
+set text_flowed = yes
+set wrap = 72
+
+# Fill these in on the target machine. This file is created from
+# private.muttrc.example during installation and is not in the bootstrap bundle.
+source ~/.config/neomutt/private.muttrc
+
+set folder = "imaps://imaphz.qiye.163.com"
+set spoolfile = "+INBOX"
+set postponed = "+草稿箱"
+set record = "+已发送"
+set trash = "+已删除"
+
+set charset = "utf-8"
+set send_charset = "utf-8"
+set assumed_charset = "utf-8"
+set allow_8bit = yes
+
+set sort = "threads"
+set sort_aux = "reverse-date"
+set auto_tag = yes
+set pager_index_lines = 10
+
+set ssl_force_tls = yes
+set from = "$imap_user"
+set realname = "Yang Yuchen"
+set envelope_from = yes
+
+mailboxes +INBOX +草稿箱 +已发送 +已删除 +已归档
+set imap_check_subscribed = yes
+
+set sidebar_visible = yes
+set sidebar_width = 30
+set sidebar_format = "%B%?F? [%F]?%* %?N?%N/?%S"
+set mail_check_stats
+
+set sidebar_folder_indent = yes
+set sidebar_delim_chars = "./"
+set sidebar_indent_string = "  "
+set sidebar_short_path = no
+set sidebar_sort_method = alpha
+
+bind index,pager B sidebar-toggle-visible
+bind index,pager > sidebar-next
+bind index,pager < sidebar-prev
+bind index,pager o sidebar-open
+
+color sidebar_highlight yellow default
+color sidebar_new red default
+color sidebar_divider brightblack default

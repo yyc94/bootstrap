@@ -1,0 +1,99 @@
+#!/usr/bin/env zsh
+
+function clow {
+    if ! command -v cheat >/dev/null 2>&1; then
+        echo "cheat is not installed"
+        return 1
+    fi
+
+    if [ "$1" = "edit" ]; then
+        cheat -e "$2"
+    elif command -v glow >/dev/null 2>&1; then
+        cheat "$1" | glow
+    else
+        cheat "$1"
+    fi
+}
+
+function proxy_on {
+    export proxy="${PROXY_ADDR:-192.168.0.11:20171}"
+    export http_proxy="http://${proxy}"
+    export https_proxy="http://${proxy}"
+    echo "proxy on: ${proxy}"
+}
+
+function proxy_off {
+    unset proxy https_proxy http_proxy
+    echo "proxy off"
+}
+
+function feat {
+    target="debug_firmware_feature$1"
+    ./mkfirmware.sh "$target"
+}
+
+function ef {
+    target="${FIRMWARE_EXPORT_DIR:-/mnt/f/FIRMWARES/}"
+    firmware=$(find ./firmware/ -name "*factory*.img" 2>/dev/null | head -n 1)
+    if [ -z "$firmware" ]; then
+        echo "no factory firmware found"
+        return 1
+    fi
+    cp "$firmware" "$target"
+    echo "$firmware export done"
+}
+
+function ts {
+    if ! command -v trans >/dev/null 2>&1; then
+        echo "translate-shell is not installed"
+        return 1
+    fi
+
+    echo "welcome"
+    input=""
+    until [[ "$input" == "exit" ]]; do
+        read "input?word or sentence: "
+        if [[ "$input" != "exit" ]]; then
+            if echo "$input" | grep -Pq "[\x{4e00}-\x{9fff}]"; then
+                trans zh:en "$input"
+            else
+                trans en:zh "$input"
+            fi
+            read -k
+            clear
+        fi
+    done
+    echo "bye"
+}
+
+function todo {
+    case "$1" in
+    edit)
+        ${EDITOR:-vim} "$HOME/.todo/TODO.md"
+        ;;
+    *)
+        if command -v glow >/dev/null 2>&1; then
+            glow "$HOME/.todo/TODO.md"
+        else
+            cat "$HOME/.todo/TODO.md"
+        fi
+        ;;
+    esac
+}
+
+function calc {
+    echo "$1" | bc -l
+}
+
+function .. {
+    cd ../ || return
+}
+function ... {
+    cd ../../ || return
+}
+function .... {
+    cd ../../../ || return
+}
+function ..... {
+    cd ../../../../ || return
+}
