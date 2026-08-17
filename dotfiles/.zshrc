@@ -1,4 +1,5 @@
-if [ -r "$HOME/scripts/show_daily_message.sh" ]; then
+# Startup output must run before Powerlevel10k instant prompt initialization.
+if [[ -o interactive && -r "$HOME/scripts/show_daily_message.sh" ]]; then
     source "$HOME/scripts/show_daily_message.sh"
 fi
 
@@ -15,8 +16,6 @@ fi
 
 if [[ -r "$HOME/.local/share/zinit/zinit.git/zinit.zsh" ]]; then
     source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
-    autoload -Uz _zinit
-    (( ${+_comps} )) && _comps[zinit]=_zinit
 
     zinit light-mode for \
         zdharma-continuum/zinit-annex-as-monitor \
@@ -26,13 +25,21 @@ if [[ -r "$HOME/.local/share/zinit/zinit.git/zinit.zsh" ]]; then
 
     zinit ice depth=1
     zinit light romkatv/powerlevel10k
-    zinit ice lucid wait='1'
     zinit light skywind3000/z.lua
-    zinit light Aloxaf/fzf-tab
     zinit light paulirish/git-open
+
+    # Completion definitions must enter fpath before compinit. fzf-tab must be
+    # loaded after compinit because it wraps the widgets created by compinit.
     zinit light zsh-users/zsh-completions
+    autoload -Uz compinit
+    command mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+    compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump-${ZSH_VERSION}"
+
+    autoload -Uz _zinit
+    compdef _zinit zinit
+
+    zinit light Aloxaf/fzf-tab
     zinit light zsh-users/zsh-autosuggestions
-    zinit light zdharma-continuum/fast-syntax-highlighting
 fi
 
 [[ ! -f "$HOME/.p10k.zsh" ]] || source "$HOME/.p10k.zsh"
@@ -66,4 +73,9 @@ if [ -x "$HOME/miniconda3/bin/conda" ]; then
         export PATH="$HOME/miniconda3/bin:$PATH"
     fi
     unset __conda_setup
+fi
+
+# Syntax highlighting must be sourced after all widgets and shell integrations.
+if (( ${+functions[zinit]} )); then
+    zinit light zdharma-continuum/fast-syntax-highlighting
 fi

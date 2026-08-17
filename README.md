@@ -1,6 +1,6 @@
 # Pop!_OS 新电脑环境复现
 
-这套文件用于在一台只有 `sh`/`bash` 的全新 Pop!_OS 电脑上，恢复当前的终端和开发环境。它会安装所选软件，部署 zsh、Neovim、Zellij、Git、Glow、Cheat、Neomutt 等配置，并初始化 zinit 和 Neovim 插件。
+这套文件用于在一台只有 `sh`/`bash` 的全新 Pop!_OS 电脑上，恢复当前的终端和开发环境。它会安装所选软件，部署 zsh、Neovim、Zellij、Git、Glow、Cheat、Neomutt 等配置，并初始化 zinit、zsh 插件和 Neovim 插件。
 
 ## 1. 把目录带到新电脑
 
@@ -27,6 +27,7 @@ cd ~/bootstrap-new-machine
 | 分区 | 安装方式 | 说明 |
 | --- | --- | --- |
 | `apt:*` | `apt-get` | Pop!_OS/Ubuntu 仓库软件；仓库中不存在的项会跳过并汇总 |
+| `external:fonts` | Powerlevel10k 官方字体文件 | 安装 MesloLGS Nerd Font 到当前用户的字体目录 |
 | `external:versioned` | 官方 release | 固定版本软件；当前启用 nvim、zellij、cmake 和 herdr |
 | `external:optional` | 官方安装器 | rustup、Miniconda、xmake 等可选工具 |
 | `npm:global` | `npm install -g` | 必须先选择 Node.js |
@@ -58,6 +59,8 @@ cheat 4.4.2
   改成 `ssh`。
 - `GENERATE_GITHUB_SSH_KEY=1` 会在没有现有 SSH 公钥时生成 Ed25519 密钥。
 - `NVIM_LAZY_SYNC=1` 表示安装后自动同步 Neovim 插件；网络不稳定时可暂时设为 `0`。
+- `CONFIGURE_GNOME_TERMINAL_FONT=1` 会把当前 GNOME Terminal profile 设置为
+  `TERMINAL_FONT`；其他终端需要在其设置中选择 `MesloLGS NF`。
 
 脚本会在安装软件前先配置 `APT_MIRROR` 并执行 `apt-get update`。它支持传统的
 `/etc/apt/sources.list`、新版 Ubuntu 的 deb822 `ubuntu.sources`，以及 Pop!_OS 的
@@ -112,6 +115,13 @@ export AMAP_CITY_ADCODE='440300'
 sh install.sh
 ```
 
+如果当前网络不能直连 GitHub，在同一条命令中传入标准代理环境变量；git、curl、zinit
+和字体下载都会继承它们：
+
+```sh
+http_proxy=http://proxy-host:port https_proxy=http://proxy-host:port sh install.sh
+```
+
 请使用普通用户执行，不要运行 `sudo sh install.sh`。脚本只在安装 apt 包或修改 apt
 源时自行调用 `sudo`；整体使用 sudo 会把 dotfiles 和用户级工具安装到 root 的 home
 目录。若脚本异常退出，可用 `sh -x install.sh` 显示逐条执行轨迹。
@@ -123,9 +133,11 @@ sh install.sh
 3. 安装 apt 基础包，并确认 `git`、`curl`、`tar`、`ssh-keygen` 等命令可用。
 4. 备份并部署 dotfiles，然后配置 pip/Rust 基础环境。
 5. 配置 Git 提交身份，生成/验证 GitHub SSH Key；验证成功后才启用 SSH 通路。
-6. 安装固定版本工具，再安装 zinit。
-7. 询问并安装可选工具，随后配置 npm/Conda 源和 npm/cargo 全局包。
-8. 询问 Neovim 插件同步和默认 shell，最后统一做版本校验和失败汇总。
+6. 安装固定版本工具、zinit 和全部 zsh 插件，并验证补全、p10k、fzf-tab、自动建议、
+   语法高亮和 z.lua 均已加载。
+7. 安装 MesloLGS Nerd Font、刷新字体缓存，并尽可能配置 GNOME Terminal 使用该字体。
+8. 询问并安装可选工具，随后配置 npm/Conda 源和 npm/cargo 全局包。
+9. 询问 Neovim 插件同步和默认 shell，最后统一做版本校验和失败汇总。
 
 网络失败、zinit 失败或可选工具失败会给出重试/跳过选择；核心 apt 更新、基础命令缺失
 仍会中止，因为继续执行会放大后续错误。交互终端会询问 apt 镜像、可选工具、SSH、
@@ -149,13 +161,22 @@ sh install.sh --with-rust --with-miniconda --with-xmake
 exec zsh
 ```
 
-首次进入 zsh 时，zinit 可能继续下载 Powerlevel10k、补全、自动建议、语法高亮、fzf-tab 等插件。首次进入 Neovim 时，lazy.nvim/Mason 也可能继续下载插件和 LSP。
+安装脚本已经下载并检查 Powerlevel10k、补全、自动建议、语法高亮、fzf-tab 和 z.lua，
+首次进入 zsh 不应再依赖插件下载。首次进入 Neovim 时，lazy.nvim/Mason 仍可能继续下载
+插件和 LSP。
+
+`.p10k.zsh` 使用 Nerd Font v3 图标。脚本会安装 Powerlevel10k 官方推荐的四种
+MesloLGS NF 字体并自动配置 GNOME Terminal。对于 VS Code、Konsole、Tilix、Kitty、
+WezTerm 等终端，需要在对应的 profile 中手动选择 `MesloLGS NF`；仅把字体安装到系统
+并不会改变这些终端自己的字体设置。
 
 建议检查：
 
 ```sh
 echo "$SHELL"
 zsh --version
+zsh -ic 'print "compdef=$+functions[compdef] p10k=$+functions[p10k] fzf-tab=$+widgets[fzf-tab-complete]"'
+fc-match 'MesloLGS NF'
 nvim --version
 zellij --version
 cmake --version
@@ -194,13 +215,64 @@ sh install.sh --restore-git="$HOME/.bootstrap-backup-20260814-120000"
 ```
 
 其他文件仍可从备份目录手动恢复。脚本不会复制或删除 SSH/GPG 私钥、浏览器资料、
-项目目录和缓存。完整覆盖范围见 [config-coverage.md](config-coverage.md)。
+项目目录和与本次安装无关的缓存。完整覆盖范围见 [config-coverage.md](config-coverage.md)。
+
+## 一键交互清理
+
+安装器从开始运行时就把实际新增或替换的内容写入
+`~/.local/state/bootstrap-new-machine/runs/`。即使安装中途失败，账本也会保留。执行：
+
+```sh
+sh install.sh --cleanup
+```
+
+也可以使用等价参数 `--uninstall`，或者直接运行 `sh cleanup.sh`。清理必须在交互终端
+中进行。每个文件、目录、apt/npm/Cargo 包、字体、终端设置、apt 源和默认 shell 都会
+单独询问，默认答案是删除或恢复，直接按回车即可；输入 `n` 会保留该项。
+
+被脚本覆盖的原文件不会直接丢弃，清理时会删除脚本部署的版本并恢复安装前备份。
+apt 只删除账本确认由脚本新安装的包；原本已安装的软件即使也列在 `packages.conf` 中，
+也不会被删除。apt 删除前还会执行模拟，如果会连带删除任何非脚本安装的软件，该项会
+被拒绝。
+
+成功清理的项目会立即从账本移除；即使清理本身中途退出，下次运行也会从剩余项继续。
+某项被跳过或失败后，清理会停止，不再删除依赖它的更早项目。若目录中只剩用户后来
+加入的内容，目录会被安全保留；清理器不会通过递归删除父目录绕过这个选择。存在未完成
+的新安装记录时，也不会继续清理更早的安装记录，避免恢复顺序错误。
+
+旧版安装器没有账本时，清理器会扫描本仓库管理的 dotfiles、zinit、固定版本工具、
+Nerd Font 和已知缓存并逐项确认，同时尝试使用最早的 `.bootstrap-backup-*` 恢复文件。
+旧安装的 apt 包和原登录 shell 无法可靠判断来源，因此不会猜测删除。
 
 ## 常见问题
 
 - `apt-get update` 失败：先恢复默认源，或检查 `APT_MIRROR` 是否适配当前 Pop!_OS 的 Ubuntu 基础版本。
 - GitHub/官方 release 下载失败：检查代理/DNS 后直接重跑，已正确安装的固定版本会跳过。
 - `Lazy sync failed`：进入 Neovim 后执行 `:Lazy sync`。
-- zsh 插件不完整：在网络正常时重新打开 zsh，或执行 `zinit update`。
+- zsh 插件检查失败：确认 `git`、`curl`、`lua5.4` 和 `fzf` 可用，然后重新运行安装脚本；
+  更新已有插件可执行 `zinit update`。
+- p10k/Neovim 图标显示方框：执行 `fc-match 'MesloLGS NF'` 确认字体已注册，并在当前
+  终端的 profile 中选择 `MesloLGS NF`；终端字体设置独立于桌面界面字体。
 - 某个 apt 包未找到：安装末尾会列出名称；这通常是 Pop!_OS 版本仓库差异，不会阻止其他软件安装。
 - `chsh` 失败：确认 `/etc/shells` 中包含 `command -v zsh` 的输出，再手动运行 `chsh`。
+
+## 容器迁移测试
+
+zsh 安装链路可以在全新的 Ubuntu 22.04 容器和空 HOME 中验证，不会读取或修改宿主机的
+zinit、插件、字体或 dotfiles。测试会执行安装、真实 PTY 首次启动和交互清理：
+
+```sh
+sh tests/test-zsh-migration.sh
+```
+
+默认镜像是 `ubuntu:22.04`。离线环境可以指定已有的干净 Ubuntu 22.04 镜像：
+
+```sh
+BOOTSTRAP_TEST_IMAGE=your-ubuntu:22.04 sh tests/test-zsh-migration.sh
+```
+
+测试网络需要代理时，只对测试容器传入代理地址：
+
+```sh
+BOOTSTRAP_TEST_PROXY=http://proxy-host:port sh tests/test-zsh-migration.sh
+```
